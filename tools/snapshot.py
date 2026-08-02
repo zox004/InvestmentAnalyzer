@@ -1,0 +1,253 @@
+#!/usr/bin/env python3
+"""MNQ 브리핑용 데이터 스냅샷 수집기.
+
+시세·금리·VIX·달러인덱스(야후 파이낸스), 다가오는 지표 일정(calendar_2026.yaml),
+COT 포지셔닝(CFTC 공개 API), 롤오버 D-day를 모아 마크다운으로 출력한다.
+
+숫자는 이 스냅샷을 기준으로 쓰고, 뉴스·예상치(컨센서스)·실적 일정은 웹서치로 보완할 것.
+
+사용법:
+    .venv/bin/python tools/snapshot.py            # 향후 7일 일정 포함
+    .venv/bin/python tools/snapshot.py --days 14  # 향후 14일 일정 포함
+
+최초 셋업:
+    python3 -m venv .venv
+    .venv/bin/pip install -r tools/requirements.txt
+"""
+
+import argparse
+from datetime import date, datetime, timedelta
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
+ET = ZoneInfo("America/New_York")
+KST = ZoneInfo("Asia/Seoul")
+WEEKDAY_KO = "월화수목금토일"
+
+# (야후 심볼, 라벨, 표시 형식)  형식: pts=지수/가격, pct10=값/10을 %로, raw=그대로
+SYMBOLS = [
+    ("MNQ=F", "MNQ 선물 (마이크로 나스닥)", "pts"),
+    ("^NDX", "나스닥100 현물", "pts"),
+    ("^IXIC", "나스닥 종합 (뉴스 기준 지수)", "pts"),
+    ("ES=F", "S&P500 선물 (ES)", "pts"),
+    ("^TNX", "미 10년물 국채금리", "pct10"),
+    ("^VIX", "VIX (공포지수)", "raw"),
+    ("DX-Y.NYB", "달러인덱스 (DXY)", "raw"),
+]
+
+COT_URL = "https://publicreporting.cftc.gov/resource/6dca-aqww.json"  # 레거시 보고서(선물만)
+
+
+def fetch_market():
+    """야후 파이낸스에서 최근 종가·등락률 수집."""
+    import yfinance as yf
+
+    symbols = [s for s, _, _ in SYMBOLS]
+    try:
+        data = yf.download(
+            symbols, period="10d", interval="1d",
+            progress=False, auto_adjust=True, group_by="ticker", threads=True,
+        )
+    except Exception as e:  # 전체 실패
+        return [], f"야후 파이낸스 조회 실패: {e}"
+
+    rows = []
+    for sym, label, fmt in SYMBOLS:
+        try:
+            close = data[sym]["Close"].dropna()
+            if close.empty:
+                raise ValueError("데이터 없음")
+            last = float(close.iloc[-1])
+            last_date = close.index[-1].date()
+            prev = float(close.iloc[-2]) if len(close) >= 2 else None
+            week_ago = float(close.iloc[-6]) if len(close) >= 6 else None
+            rows.append({"label": label, "fmt": fmt, "last": last,
+                         "prev": prev, "week": week_ago, "date": last_date})
+        except Exception:
+            rows.append({"label": label, "fmt": fmt, "na": True})
+    return rows, None
+
+
+def norm_yield(v):
+    """^TNX는 데이터 소스에 따라 47.1 또는 4.71로 옴 — 20 초과면 10으로 나눠 %로 정규화."""
+    return v / 10 if v > 20 else v
+
+
+def fmt_value(row):
+    v = row["last"]
+    return f"{norm_yield(v):.2f}%" if row["fmt"] == "pct10" else f"{v:,.2f}"
+
+
+def fmt_change(row, base_key):
+    base = row.get(base_key)
+    if base is None:
+        return "-"
+    if row["fmt"] == "pct10":  # 금리는 %p(퍼센트포인트) 변화로
+        return f"{norm_yield(row['last']) - norm_yield(base):+.2f}%p"
+    return f"{(row['last'] / base - 1) * 100:+.2f}%"
+
+
+def fetch_cot():
+    """CFTC 레거시 보고서에서 나스닥 투기세력(비상업) 순포지션 최근 3주."""
+    import requests
+
+    params = {
+        "$select": ("market_and_exchange_names,report_date_as_yyyy_mm_dd,"
+                    "noncomm_positions_long_all,noncomm_positions_short_all"),
+        "$where": "upper(market_and_exchange_names) like '%NASDAQ%'",
+        "$order": "report_date_as_yyyy_mm_dd DESC",
+        "$limit": "60",
+    }
+    try:
+        r = requests.get(COT_URL, params=params, timeout=30,
+                         headers={"User-Agent": "InvestmentAnalyzer/1.0"})
+        r.raise_for_status()
+        recs = r.json()
+    except Exception as e:
+        return None, f"CFTC API 조회 실패: {e}"
+    if not recs:
+        return None, "CFTC 응답에 NASDAQ 시장이 없음"
+
+    by_market = {}
+    for rec in recs:
+        by_market.setdefault(rec["market_and_exchange_names"], []).append(rec)
+
+    def net_of(rec):
+        return int(rec["noncomm_positions_long_all"]) - int(rec["noncomm_positions_short_all"])
+
+    # E-mini("NASDAQ MINI") 우선 — "MICRO E-MINI"는 개인 비중이 높아 별도 참고용
+    names = list(by_market)
+    name = (next((n for n in names if "NASDAQ MINI" in n.upper()), None)
+            or next((n for n in names if "MINI" in n.upper() and "MICRO" not in n.upper()), None)
+            or names[0])
+    hist = [(rec["report_date_as_yyyy_mm_dd"][:10], net_of(rec)) for rec in by_market[name][:3]]
+
+    micro_name = next((n for n in names if "MICRO" in n.upper()), None)
+    micro = (micro_name, net_of(by_market[micro_name][0])) if micro_name else None
+    return {"market": name, "hist": hist, "micro": micro}, None
+
+
+def third_friday(year, month):
+    d = date(year, month, 15)
+    while d.weekday() != 4:
+        d += timedelta(days=1)
+    return d
+
+
+def rollover_info(today):
+    """현재 근월물(분기물)과 만기 D-day."""
+    codes = {3: "H", 6: "M", 9: "U", 12: "Z"}
+    for m in (3, 6, 9, 12):
+        exp = third_friday(today.year, m)
+        if exp >= today:
+            break
+    else:
+        m, exp = 3, third_friday(today.year + 1, 3)
+    return codes[m], exp, (exp - today).days
+
+
+def load_events(days):
+    """calendar_2026.yaml + 매주 목요일 실업수당 청구를 KST로 변환해 반환."""
+    import yaml
+
+    path = Path(__file__).parent / "calendar_2026.yaml"
+    cfg = yaml.safe_load(path.read_text(encoding="utf-8"))
+
+    events = []
+    for ev in cfg.get("events", []):
+        d = ev["date"]
+        if not isinstance(d, date):
+            d = datetime.strptime(str(d), "%Y-%m-%d").date()
+        hh, mm = map(int, str(ev["time"]).split(":"))
+        dt_et = datetime(d.year, d.month, d.day, hh, mm, tzinfo=ET)
+        events.append({"dt": dt_et.astimezone(KST), "name": ev["name"],
+                       "imp": int(ev.get("importance", 1)),
+                       "confirmed": bool(ev.get("confirmed", False))})
+
+    # 매주 목요일 08:30 ET 신규 실업수당 청구 자동 추가
+    today_et = datetime.now(ET).date()
+    for i in range(days + 2):
+        d = today_et + timedelta(days=i)
+        if d.weekday() == 3:  # 목요일
+            dt_et = datetime(d.year, d.month, d.day, 8, 30, tzinfo=ET)
+            events.append({"dt": dt_et.astimezone(KST),
+                           "name": "신규 실업수당 청구건수 (주간)",
+                           "imp": 1, "confirmed": True})
+
+    now = datetime.now(KST)
+    horizon = now + timedelta(days=days)
+    upcoming = [e for e in events if now - timedelta(hours=12) <= e["dt"] <= horizon]
+    upcoming.sort(key=lambda e: e["dt"])
+    return upcoming
+
+
+def main():
+    ap = argparse.ArgumentParser(description="MNQ 브리핑용 데이터 스냅샷")
+    ap.add_argument("--days", type=int, default=7, help="일정 표시 범위(일), 기본 7")
+    args = ap.parse_args()
+
+    now = datetime.now(KST)
+    print(f"# 데이터 스냅샷 — {now:%Y-%m-%d} ({WEEKDAY_KO[now.weekday()]}) {now:%H:%M} KST")
+
+    # 1. 시장 데이터
+    print("\n## 1. 시장 데이터 (최근 종가 기준 — 주말엔 금요일 종가)\n")
+    rows, err = fetch_market()
+    if err:
+        print(f"⚠ {err}")
+    else:
+        print("| 항목 | 값 | 전일 대비 | 최근 5일 | 기준일 |")
+        print("|---|---|---|---|---|")
+        for r in rows:
+            if r.get("na"):
+                print(f"| {r['label']} | N/A (조회 실패 — 웹서치로 보완) | - | - | - |")
+            else:
+                print(f"| {r['label']} | {fmt_value(r)} | {fmt_change(r, 'prev')} "
+                      f"| {fmt_change(r, 'week')} | {r['date']:%m/%d} |")
+
+    # 2. 일정
+    print(f"\n## 2. 다가오는 주요 일정 — 향후 {args.days}일 (한국시간)\n")
+    try:
+        events = load_events(args.days)
+        if not events:
+            print("(해당 기간에 등록된 일정 없음)")
+        else:
+            print("| 일시 (KST) | 이벤트 | 중요도 |")
+            print("|---|---|---|")
+            for e in events:
+                dt = e["dt"]
+                mark = "" if e["confirmed"] else " ⚠일정 재확인 필요"
+                print(f"| {dt:%m/%d}({WEEKDAY_KO[dt.weekday()]}) {dt:%H:%M} "
+                      f"| {e['name']}{mark} | {'★' * e['imp']} |")
+            print("\n> 고중요도(★★★) 발표 전후 ±30분 신규 진입 금지 (PLAN.md 리스크 원칙)")
+    except Exception as e:
+        print(f"⚠ 일정 로드 실패: {e}")
+
+    # 3. COT
+    print("\n## 3. COT — 나스닥 투기세력 순포지션 (CFTC, 화요일 기준 데이터)\n")
+    cot, err = fetch_cot()
+    if err:
+        print(f"⚠ {err}")
+    else:
+        trail = " → ".join(f"{net:+,} ({d})" for d, net in reversed(cot["hist"]))
+        print(f"- 시장: {cot['market']} (E-mini, 기관 투기세력 지표의 표준)")
+        print(f"- 최근 3주 순포지션(롱-숏): {trail}")
+        if cot.get("micro"):
+            mname, mnet = cot["micro"]
+            print(f"- 참고: 마이크로 월물({mname.split(' - ')[0]}) 최신 순포지션 {mnet:+,} — 개인 비중이 높아 해석 다름")
+
+    # 4. 롤오버
+    print("\n## 4. 롤오버 체크\n")
+    code, exp, dleft = rollover_info(now.date())
+    line = f"- 현재 근월물: {exp.month}월물({code}) · 만기 {exp:%Y-%m-%d}(금) · D-{dleft}"
+    if dleft <= 10:
+        line += " — ⚠ **롤오버 구간: 다음 월물로 이동 고려, 호가 얇아짐 주의**"
+    else:
+        line += " — 여유"
+    print(line)
+
+    print("\n---")
+    print("※ 이 스냅샷에는 지표 예상치(컨센서스)·간밤 뉴스·실적 일정이 없다 → 웹서치로 보완할 것.")
+
+
+if __name__ == "__main__":
+    main()

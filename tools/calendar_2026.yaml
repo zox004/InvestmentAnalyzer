@@ -1,0 +1,210 @@
+# 미국 주요 경제지표 일정 — 2026년 하반기
+#
+# - time은 미국 동부시간(ET). snapshot.py가 한국시간(KST)으로 자동 변환한다
+#   (서머타임 종료(11/1) 이후의 +1시간도 자동 반영됨)
+# - confirmed: true  = 공식 일정으로 확인됨
+#   confirmed: false = 통상 패턴 기반 추정 → 위클리 브리핑 작성 때 웹서치로 재확인 후 갱신
+# - importance: 3=★★★(시장 최대), 2=★★, 1=★
+# - 매주 목요일 신규 실업수당 청구(08:30 ET)는 snapshot.py가 자동 생성하므로 여기 없음
+# - 소매판매(9월 이후)·연준 인사 연설·빅테크 실적 등 가변 일정은 위클리에서 추가/웹서치 보완
+
+events:
+  # ── 8월 ──────────────────────────────────────────
+  - date: 2026-08-03
+    time: "10:00"
+    name: "ISM 제조업 PMI (7월)"
+    importance: 2
+    confirmed: true
+  - date: 2026-08-05
+    time: "08:15"
+    name: "ADP 민간고용 (7월)"
+    importance: 2
+    confirmed: true
+  - date: 2026-08-05
+    time: "10:00"
+    name: "ISM 서비스업 PMI (7월)"
+    importance: 2
+    confirmed: true
+  - date: 2026-08-07
+    time: "08:30"
+    name: "고용보고서 — NFP·실업률·시간당임금 (7월)"
+    importance: 3
+    confirmed: true
+  - date: 2026-08-12
+    time: "08:30"
+    name: "CPI 소비자물가 (7월)"
+    importance: 3
+    confirmed: true
+  - date: 2026-08-14
+    time: "08:30"
+    name: "소매판매 (7월)"
+    importance: 2
+    confirmed: false
+  - date: 2026-08-26
+    time: "08:30"
+    name: "PCE 물가 (7월)"
+    importance: 2
+    confirmed: true
+  - date: 2026-08-27
+    time: "08:30"
+    name: "GDP 2차 추정 (2분기)"
+    importance: 1
+    confirmed: false
+  - date: 2026-08-27
+    time: "10:00"
+    name: "잭슨홀 심포지엄 개막 (연준 연례행사, ~8/29 추정)"
+    importance: 2
+    confirmed: false
+
+  # ── 9월 ──────────────────────────────────────────
+  - date: 2026-09-01
+    time: "10:00"
+    name: "ISM 제조업 PMI (8월)"
+    importance: 2
+    confirmed: true
+  - date: 2026-09-02
+    time: "08:15"
+    name: "ADP 민간고용 (8월)"
+    importance: 2
+    confirmed: false
+  - date: 2026-09-03
+    time: "10:00"
+    name: "ISM 서비스업 PMI (8월)"
+    importance: 2
+    confirmed: true
+  - date: 2026-09-04
+    time: "08:30"
+    name: "고용보고서 — NFP·실업률·시간당임금 (8월)"
+    importance: 3
+    confirmed: false
+  - date: 2026-09-11
+    time: "08:30"
+    name: "CPI 소비자물가 (8월)"
+    importance: 3
+    confirmed: true
+  - date: 2026-09-16
+    time: "14:00"
+    name: "FOMC 금리 결정 + 점도표 (기자회견 14:30 ET)"
+    importance: 3
+    confirmed: true
+  - date: 2026-09-25
+    time: "08:30"
+    name: "PCE 물가 (8월)"
+    importance: 2
+    confirmed: false
+  - date: 2026-09-30
+    time: "08:15"
+    name: "ADP 민간고용 (9월)"
+    importance: 2
+    confirmed: false
+  - date: 2026-09-30
+    time: "08:30"
+    name: "GDP 연례 개정 + 2분기 확정 (BEA 연례 업데이트)"
+    importance: 1
+    confirmed: true
+
+  # ── 10월 ─────────────────────────────────────────
+  - date: 2026-10-01
+    time: "10:00"
+    name: "ISM 제조업 PMI (9월)"
+    importance: 2
+    confirmed: true
+  - date: 2026-10-02
+    time: "08:30"
+    name: "고용보고서 — NFP·실업률·시간당임금 (9월)"
+    importance: 3
+    confirmed: false
+  - date: 2026-10-05
+    time: "10:00"
+    name: "ISM 서비스업 PMI (9월)"
+    importance: 2
+    confirmed: true
+  - date: 2026-10-14
+    time: "08:30"
+    name: "CPI 소비자물가 (9월)"
+    importance: 3
+    confirmed: true
+  - date: 2026-10-28
+    time: "14:00"
+    name: "FOMC 금리 결정 (기자회견 14:30 ET)"
+    importance: 3
+    confirmed: true
+  - date: 2026-10-29
+    time: "08:30"
+    name: "GDP 속보치 (3분기)"
+    importance: 2
+    confirmed: false
+  - date: 2026-10-30
+    time: "08:30"
+    name: "PCE 물가 (9월)"
+    importance: 2
+    confirmed: false
+
+  # ── 11월 ─────────────────────────────────────────
+  - date: 2026-11-02
+    time: "10:00"
+    name: "ISM 제조업 PMI (10월)"
+    importance: 2
+    confirmed: true
+  - date: 2026-11-04
+    time: "08:15"
+    name: "ADP 민간고용 (10월)"
+    importance: 2
+    confirmed: false
+  - date: 2026-11-04
+    time: "10:00"
+    name: "ISM 서비스업 PMI (10월)"
+    importance: 2
+    confirmed: true
+  - date: 2026-11-06
+    time: "08:30"
+    name: "고용보고서 — NFP·실업률·시간당임금 (10월)"
+    importance: 3
+    confirmed: false
+  - date: 2026-11-10
+    time: "08:30"
+    name: "CPI 소비자물가 (10월)"
+    importance: 3
+    confirmed: true
+  - date: 2026-11-25
+    time: "08:30"
+    name: "PCE 물가 (10월)"
+    importance: 2
+    confirmed: false
+
+  # ── 12월 ─────────────────────────────────────────
+  - date: 2026-12-01
+    time: "10:00"
+    name: "ISM 제조업 PMI (11월)"
+    importance: 2
+    confirmed: true
+  - date: 2026-12-02
+    time: "08:15"
+    name: "ADP 민간고용 (11월)"
+    importance: 2
+    confirmed: false
+  - date: 2026-12-03
+    time: "10:00"
+    name: "ISM 서비스업 PMI (11월)"
+    importance: 2
+    confirmed: true
+  - date: 2026-12-04
+    time: "08:30"
+    name: "고용보고서 — NFP·실업률·시간당임금 (11월)"
+    importance: 3
+    confirmed: false
+  - date: 2026-12-09
+    time: "14:00"
+    name: "FOMC 금리 결정 + 점도표 (기자회견 14:30 ET)"
+    importance: 3
+    confirmed: true
+  - date: 2026-12-10
+    time: "08:30"
+    name: "CPI 소비자물가 (11월)"
+    importance: 3
+    confirmed: true
+  - date: 2026-12-23
+    time: "08:30"
+    name: "PCE 물가 (11월)"
+    importance: 2
+    confirmed: false

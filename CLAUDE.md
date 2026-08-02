@@ -22,9 +22,11 @@
 
 ## 루틴 처리
 
-- **"브리핑" 요청** → 웹서치(오늘 지표 캘린더, 간밤 뉴스, 10Y 금리·DXY·VIX, 연준 동향, 빅테크 뉴스) → `briefings/YYYY-MM/YYYY-MM-DD-MNQ.md` 작성 (PLAN.md 데일리 포맷) → 커밋+푸시
-- **"위클리" 요청** → `weekly/YYYY-MM-DD.md` 작성 (PLAN.md 위클리 포맷, COT 포함) → 커밋+푸시
+- **공통 1단계 — 데이터 스냅샷**: 브리핑/위클리 작성 전 반드시 `.venv/bin/python tools/snapshot.py` 실행 (`.venv` 없으면 `python3 -m venv .venv && .venv/bin/pip install -r tools/requirements.txt`). **시세·금리·VIX·DXY·COT·일정·롤오버 숫자는 스냅샷 값을 우선 사용**하고, 웹서치는 뉴스·예상치(컨센서스)·실적 일정·스냅샷 N/A 항목 보완용으로만 쓴다
+- **"브리핑" 요청** → 스냅샷 + 웹서치(간밤 뉴스, 오늘 지표 예상치, 연준 동향, 빅테크 뉴스) → `briefings/YYYY-MM/YYYY-MM-DD-MNQ.md` 작성 (PLAN.md 데일리 포맷) → 커밋+푸시
+- **"위클리" 요청** → 스냅샷(`--days 10`) + 웹서치 → `weekly/YYYY-MM-DD.md` 작성 (PLAN.md 위클리 포맷, COT·지난주 편향 채점 포함) → 커밋+푸시. 이때 `tools/calendar_2026.yaml`의 다음 주 항목(특히 `confirmed: false`)을 웹서치로 재확인해 날짜/confirmed를 갱신하고 함께 커밋
 - **지표 발표 직후 해석 요청** → 실제치 vs 예상치, 시장 반응, 편향 변경 여부를 간결히 답변
+- **포지션 사이즈 질문** → `tools/risk_calc.py`로 계산해서 답변 (예: `.venv/bin/python tools/risk_calc.py --account 3000 --stop-pts 30`)
 
 ## Git
 
