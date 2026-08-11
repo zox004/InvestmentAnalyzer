@@ -15,7 +15,7 @@
 GLOSSARY.md  용어집 — 브리핑 용어를 초보 기준으로 풀이 (모르는 말이 나오면 여기부터)
 briefings/   데일리 브리핑 아카이브 (거래일 저녁 작성)
 weekly/      위클리 리뷰 & 다음 주 전망 (주말 작성)
-reviews/     편향 채점 기록 — 편향이 맞았는지, 틀렸으면 왜 틀렸는지 누적 분석
+reviews/     bias-log-<상품>.md (상품별 채점·적중률) + lessons.md (상품 공통 오류 분석)
 journal/     매매일지 (사용자 기록, 회고용)
 tools/       자동화 도구 — snapshot.py(시세·일정·COT 수집), risk_calc.py(포지션 계산), calendar_2026.yaml(지표 일정)
 ```
