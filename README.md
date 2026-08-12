@@ -1,6 +1,6 @@
 # InvestmentAnalyzer
 
-해외선물 **MNQ(마이크로 나스닥)** 트레이딩을 위한 협업 저장소.
+해외선물 지수 마이크로 3종 **MNQ(나스닥100) · M2K(러셀2000) · MYM(다우)** 트레이딩을 위한 협업 저장소.
 
 | 역할 | 담당 |
 |---|---|
@@ -24,8 +24,9 @@ tools/       자동화 도구 — snapshot.py(시세·일정·COT 수집), risk_
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r tools/requirements.txt  # 최초 1회
-.venv/bin/python tools/snapshot.py        # 브리핑용 데이터 스냅샷
-.venv/bin/python tools/risk_calc.py --account 3000 --stop-pts 30  # 진입 가능 계약 수
+.venv/bin/python tools/snapshot.py        # 브리핑용 데이터 스냅샷 (3종 시세·일정·COT·롤오버)
+.venv/bin/python tools/risk_calc.py --list                             # 상품별 사양 비교
+.venv/bin/python tools/risk_calc.py -p MYM --stop-ticks 60 --account 2117  # 진입 가능 계약 수
 ```
 
 > 본 저장소의 모든 분석은 정보 제공 목적이며, 투자 판단과 책임은 본인에게 있습니다.

@@ -27,15 +27,28 @@ WEEKDAY_KO = "월화수목금토일"
 # (야후 심볼, 라벨, 표시 형식)  형식: pts=지수/가격, pct10=값/10을 %로, raw=그대로
 SYMBOLS = [
     ("MNQ=F", "MNQ 선물 (마이크로 나스닥)", "pts"),
-    ("^NDX", "나스닥100 현물", "pts"),
+    ("^NDX", "└ 나스닥100 현물", "pts"),
+    ("M2K=F", "M2K 선물 (마이크로 러셀2000)", "pts"),
+    ("^RUT", "└ 러셀2000 현물", "pts"),
+    ("MYM=F", "MYM 선물 (마이크로 다우)", "pts"),
+    ("^DJI", "└ 다우 현물", "pts"),
     ("^IXIC", "나스닥 종합 (뉴스 기준 지수)", "pts"),
-    ("ES=F", "S&P500 선물 (ES)", "pts"),
     ("^TNX", "미 10년물 국채금리", "pct10"),
     ("^VIX", "VIX (공포지수)", "raw"),
     ("DX-Y.NYB", "달러인덱스 (DXY)", "raw"),
+    ("CL=F", "WTI 유가 (호르무즈 지표)", "raw"),
+]
+
+# 계약 사양 — 틱 가치는 셋 다 $0.50. 증거금은 변동하므로 HTS에서 확인할 것
+SPECS = [
+    # (상품, 지수심볼, 포인트당 $, 틱(포인트), 위탁증거금 참고치)
+    ("MNQ", "^NDX", 2.0, 0.25, 3958),
+    ("M2K", "^RUT", 5.0, 0.10, 1110),
+    ("MYM", "^DJI", 0.5, 1.00, 1560),
 ]
 
 COT_URL = "https://publicreporting.cftc.gov/resource/6dca-aqww.json"  # 레거시 보고서(선물만)
+COT_MARKETS = [("NASDAQ", "MNQ"), ("RUSSELL", "M2K"), ("DJIA", "MYM")]
 
 
 def fetch_market():
@@ -87,14 +100,14 @@ def fmt_change(row, base_key):
     return f"{(row['last'] / base - 1) * 100:+.2f}%"
 
 
-def fetch_cot():
-    """CFTC 레거시 보고서에서 나스닥 투기세력(비상업) 순포지션 최근 3주."""
+def fetch_cot_one(keyword):
+    """CFTC 레거시 보고서에서 해당 시장 투기세력(비상업) 순포지션 최근 3주."""
     import requests
 
     params = {
         "$select": ("market_and_exchange_names,report_date_as_yyyy_mm_dd,"
                     "noncomm_positions_long_all,noncomm_positions_short_all"),
-        "$where": "upper(market_and_exchange_names) like '%NASDAQ%'",
+        "$where": f"upper(market_and_exchange_names) like '%{keyword}%'",
         "$order": "report_date_as_yyyy_mm_dd DESC",
         "$limit": "60",
     }
@@ -104,9 +117,9 @@ def fetch_cot():
         r.raise_for_status()
         recs = r.json()
     except Exception as e:
-        return None, f"CFTC API 조회 실패: {e}"
+        return None, f"조회 실패: {e}"
     if not recs:
-        return None, "CFTC 응답에 NASDAQ 시장이 없음"
+        return None, "해당 시장 없음"
 
     by_market = {}
     for rec in recs:
@@ -115,16 +128,22 @@ def fetch_cot():
     def net_of(rec):
         return int(rec["noncomm_positions_long_all"]) - int(rec["noncomm_positions_short_all"])
 
-    # E-mini("NASDAQ MINI") 우선 — "MICRO E-MINI"는 개인 비중이 높아 별도 참고용
+    # E-mini 우선 — "MICRO E-MINI"는 개인 비중이 높아 해석이 달라 제외
     names = list(by_market)
-    name = (next((n for n in names if "NASDAQ MINI" in n.upper()), None)
-            or next((n for n in names if "MINI" in n.upper() and "MICRO" not in n.upper()), None)
+    name = (next((n for n in names if "MINI" in n.upper() and "MICRO" not in n.upper()), None)
+            or next((n for n in names if "MICRO" not in n.upper()), None)
             or names[0])
     hist = [(rec["report_date_as_yyyy_mm_dd"][:10], net_of(rec)) for rec in by_market[name][:3]]
+    return {"market": name, "hist": hist}, None
 
-    micro_name = next((n for n in names if "MICRO" in n.upper()), None)
-    micro = (micro_name, net_of(by_market[micro_name][0])) if micro_name else None
-    return {"market": name, "hist": hist, "micro": micro}, None
+
+def daily_range_pts(symbol, days=20):
+    """최근 N거래일 평균 일중 변동폭(고가-저가)을 지수 포인트로."""
+    import yfinance as yf
+
+    df = yf.download(symbol, period="2mo", interval="1d",
+                     progress=False, auto_adjust=True).dropna()
+    return float((df["High"] - df["Low"]).tail(days).mean().iloc[0])
 
 
 def third_friday(year, month):
@@ -222,21 +241,35 @@ def main():
     except Exception as e:
         print(f"⚠ 일정 로드 실패: {e}")
 
-    # 3. COT
-    print("\n## 3. COT — 나스닥 투기세력 순포지션 (CFTC, 화요일 기준 데이터)\n")
-    cot, err = fetch_cot()
-    if err:
-        print(f"⚠ {err}")
-    else:
-        trail = " → ".join(f"{net:+,} ({d})" for d, net in reversed(cot["hist"]))
-        print(f"- 시장: {cot['market']} (E-mini, 기관 투기세력 지표의 표준)")
-        print(f"- 최근 3주 순포지션(롱-숏): {trail}")
-        if cot.get("micro"):
-            mname, mnet = cot["micro"]
-            print(f"- 참고: 마이크로 월물({mname.split(' - ')[0]}) 최신 순포지션 {mnet:+,} — 개인 비중이 높아 해석 다름")
+    # 3. 계약 사양 & 하루 변동폭 (틱 기준)
+    print("\n## 3. 상품별 하루 변동폭 (최근 20거래일 평균, 틱 기준)\n")
+    print("| 상품 | 1틱 | 틱 가치 | 일평균 변동 | 달러 | 증거금 참고 |")
+    print("|---|---|---|---|---|---|")
+    for code, isym, ppt, tick_pt, margin in SPECS:
+        tick_val = ppt * tick_pt
+        try:
+            rng_pt = daily_range_pts(isym)
+            ticks = rng_pt / tick_pt
+            print(f"| {code} | {tick_pt:g}pt | ${tick_val:.2f} | {rng_pt:,.0f}pt "
+                  f"= {ticks:,.0f}틱 | ${ticks * tick_val:,.0f} | ${margin:,} |")
+        except Exception:
+            print(f"| {code} | {tick_pt:g}pt | ${tick_val:.2f} | N/A | N/A | ${margin:,} |")
+    print("\n> 증거금은 참고치 — 변동하므로 HTS에서 확인. 세 상품 모두 틱 가치 $0.50로 동일하다")
 
-    # 4. 롤오버
-    print("\n## 4. 롤오버 체크\n")
+    # 4. COT
+    print("\n## 4. COT — 투기세력 순포지션 (CFTC, 화요일 기준 데이터)\n")
+    for keyword, code in COT_MARKETS:
+        cot, err = fetch_cot_one(keyword)
+        if err:
+            print(f"- **{code}**: ⚠ {err}")
+            continue
+        trail = " → ".join(f"{net:+,}" for _, net in reversed(cot["hist"]))
+        last_date = cot["hist"][0][0]
+        print(f"- **{code}** ({cot['market'].split(' - ')[0]}): {trail}  ({last_date} 기준)")
+    print("\n> 최근 3주 순포지션(롱-숏) 추이. E-mini 기준이며 마이크로 월물은 개인 비중이 높아 제외")
+
+    # 5. 롤오버
+    print("\n## 5. 롤오버 체크\n")
     code, exp, dleft = rollover_info(now.date())
     line = f"- 현재 근월물: {exp.month}월물({code}) · 만기 {exp:%Y-%m-%d}(금) · D-{dleft}"
     if dleft <= 10:
