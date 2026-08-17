@@ -48,7 +48,13 @@ SPECS = [
 ]
 
 COT_URL = "https://publicreporting.cftc.gov/resource/6dca-aqww.json"  # 레거시 보고서(선물만)
-COT_MARKETS = [("NASDAQ", "MNQ"), ("RUSSELL", "M2K"), ("DJIA", "MYM")]
+# CFTC 시장명은 유사 상품이 많아(러셀만 9종) 키워드 매칭은 오작동한다 → 정확한 명칭으로 지정
+# 주의: "E-MINI RUSSELL 2000 INDEX"는 2022년에 보고가 끊긴 구 명칭 — 현행은 "RUSSELL E-MINI"
+COT_MARKETS = [
+    ("MNQ", "NASDAQ MINI"),
+    ("M2K", "RUSSELL E-MINI"),
+    ("MYM", "DJIA Consolidated"),
+]
 
 
 def fetch_market():
@@ -100,16 +106,20 @@ def fmt_change(row, base_key):
     return f"{(row['last'] / base - 1) * 100:+.2f}%"
 
 
-def fetch_cot_one(keyword):
-    """CFTC 레거시 보고서에서 해당 시장 투기세력(비상업) 순포지션 최근 3주."""
+def fetch_cot_one(market_name):
+    """CFTC 레거시 보고서에서 해당 시장 투기세력(비상업) 순포지션 최근 3주.
+
+    market_name은 CFTC 시장명의 앞부분과 정확히 일치해야 한다. 러셀만 9개 시장이
+    존재하는 등 유사 상품이 많아, 키워드 부분매칭은 엉뚱한 시장을 집는다.
+    """
     import requests
 
     params = {
         "$select": ("market_and_exchange_names,report_date_as_yyyy_mm_dd,"
                     "noncomm_positions_long_all,noncomm_positions_short_all"),
-        "$where": f"upper(market_and_exchange_names) like '%{keyword}%'",
+        "$where": f"starts_with(market_and_exchange_names, '{market_name}')",
         "$order": "report_date_as_yyyy_mm_dd DESC",
-        "$limit": "60",
+        "$limit": "10",
     }
     try:
         r = requests.get(COT_URL, params=params, timeout=30,
@@ -119,21 +129,22 @@ def fetch_cot_one(keyword):
     except Exception as e:
         return None, f"조회 실패: {e}"
     if not recs:
-        return None, "해당 시장 없음"
-
-    by_market = {}
-    for rec in recs:
-        by_market.setdefault(rec["market_and_exchange_names"], []).append(rec)
+        return None, f"시장명 '{market_name}' 조회 결과 없음 — CFTC 명칭 변경 여부 확인 필요"
 
     def net_of(rec):
         return int(rec["noncomm_positions_long_all"]) - int(rec["noncomm_positions_short_all"])
 
-    # E-mini 우선 — "MICRO E-MINI"는 개인 비중이 높아 해석이 달라 제외
-    names = list(by_market)
-    name = (next((n for n in names if "MINI" in n.upper() and "MICRO" not in n.upper()), None)
-            or next((n for n in names if "MICRO" not in n.upper()), None)
-            or names[0])
-    hist = [(rec["report_date_as_yyyy_mm_dd"][:10], net_of(rec)) for rec in by_market[name][:3]]
+    hist = [(rec["report_date_as_yyyy_mm_dd"][:10], net_of(rec)) for rec in recs[:3]]
+    name = recs[0]["market_and_exchange_names"]
+
+    # 보고가 끊긴 구 명칭을 잡는 사고 방지 — 최신 데이터가 30일 이상 오래되면 실패 처리
+    latest = datetime.strptime(hist[0][0], "%Y-%m-%d").date()
+    stale_days = (date.today() - latest).days
+    if stale_days > 30:
+        return None, (f"'{name}' 최신 데이터가 {hist[0][0]}로 {stale_days}일 경과 "
+                      f"— 보고 중단된 구 명칭일 수 있음, COT_MARKETS 확인 필요")
+    if len({n for _, n in hist}) == 1 and len(hist) > 1:
+        return None, f"'{name}' 3주 값이 동일 — 잘못된 시장일 수 있음"
     return {"market": name, "hist": hist}, None
 
 
@@ -258,8 +269,8 @@ def main():
 
     # 4. COT
     print("\n## 4. COT — 투기세력 순포지션 (CFTC, 화요일 기준 데이터)\n")
-    for keyword, code in COT_MARKETS:
-        cot, err = fetch_cot_one(keyword)
+    for code, market_name in COT_MARKETS:
+        cot, err = fetch_cot_one(market_name)
         if err:
             print(f"- **{code}**: ⚠ {err}")
             continue

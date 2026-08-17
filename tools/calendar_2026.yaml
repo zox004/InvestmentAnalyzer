@@ -44,7 +44,22 @@ events:
     time: "08:30"
     name: "소매판매 (7월)"
     importance: 2
-    confirmed: false
+    confirmed: true
+  - date: 2026-08-14
+    time: "10:00"
+    name: "미시간대 소비자심리 속보치 (8월)"
+    importance: 1
+    confirmed: true
+  - date: 2026-08-19
+    time: "14:00"
+    name: "FOMC 의사록 (7/29 회의) — 인상 주장 3표의 강도 확인"
+    importance: 2
+    confirmed: true
+  - date: 2026-08-21
+    time: "09:45"
+    name: "S&P글로벌 속보 PMI (8월, 제조업·서비스업)"
+    importance: 2
+    confirmed: true
   - date: 2026-08-26
     time: "08:30"
     name: "PCE 물가 (7월)"
@@ -57,9 +72,14 @@ events:
     confirmed: false
   - date: 2026-08-27
     time: "10:00"
-    name: "잭슨홀 심포지엄 개막 (연준 연례행사, ~8/29 추정)"
+    name: "잭슨홀 심포지엄 개막 (8/27~29, 주제: 금융혁신과 지급결제·정책)"
     importance: 2
-    confirmed: false
+    confirmed: true
+  - date: 2026-08-28
+    time: "10:00"
+    name: "★ 워시 연준의장 잭슨홀 기조연설 (의장 취임 후 첫 연설)"
+    importance: 3
+    confirmed: true
 
   # ── 9월 ──────────────────────────────────────────
   - date: 2026-09-01
