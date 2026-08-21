@@ -60,6 +60,11 @@ events:
     name: "S&P글로벌 속보 PMI (8월, 제조업·서비스업)"
     importance: 2
     confirmed: true
+  - date: 2026-08-24
+    time: "10:00"
+    name: "★ 베센트 재무장관 기자회견 — 대이란 '경제 고립' 세부 계획 발표 (시각 미확정)"
+    importance: 3
+    confirmed: false
   - date: 2026-08-26
     time: "08:30"
     name: "PCE 물가 (7월)"
