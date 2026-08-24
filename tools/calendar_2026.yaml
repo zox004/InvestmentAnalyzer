@@ -70,6 +70,11 @@ events:
     name: "PCE 물가 (7월)"
     importance: 2
     confirmed: true
+  - date: 2026-08-26
+    time: "16:20"
+    name: "★ 엔비디아(NVDA) 실적 발표 — 미 장마감 후 (한국시간 27일 새벽), MNQ 최대 개별 변수"
+    importance: 3
+    confirmed: true
   - date: 2026-08-27
     time: "08:30"
     name: "GDP 2차 추정 (2분기)"
