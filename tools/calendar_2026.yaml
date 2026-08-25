@@ -5,7 +5,8 @@
 # - confirmed: true  = 공식 일정으로 확인됨
 #   confirmed: false = 통상 패턴 기반 추정 → 위클리 브리핑 작성 때 웹서치로 재확인 후 갱신
 # - importance: 3=★★★(시장 최대), 2=★★, 1=★
-# - 매주 목요일 신규 실업수당 청구(08:30 ET)는 snapshot.py가 자동 생성하므로 여기 없음
+# - 매주 목요일 신규 실업수당 청구(08:30 ET), 매주 수요일 EIA 원유재고(10:30 ET)는
+#   snapshot.py가 자동 생성하므로 여기 없음
 # - 소매판매(9월 이후)·연준 인사 연설·빅테크 실적 등 가변 일정은 위클리에서 추가/웹서치 보완
 
 events:
@@ -65,6 +66,16 @@ events:
     name: "★ 베센트 재무장관 기자회견 — 대이란 '경제 고립' 세부 계획 발표 (시각 미확정)"
     importance: 3
     confirmed: false
+  - date: 2026-08-25
+    time: "10:00"
+    name: "소비자신뢰지수 (8월) — 소비 둔화 흐름 확인, M2K에 직결"
+    importance: 2
+    confirmed: true
+  - date: 2026-08-25
+    time: "10:00"
+    name: "신규주택판매 (7월) · 리치먼드 연은 제조업지수 (8월)"
+    importance: 1
+    confirmed: true
   - date: 2026-08-26
     time: "08:30"
     name: "PCE 물가 (7월)"

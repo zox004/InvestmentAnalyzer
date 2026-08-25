@@ -194,7 +194,7 @@ def load_events(days):
                        "imp": int(ev.get("importance", 1)),
                        "confirmed": bool(ev.get("confirmed", False))})
 
-    # 매주 목요일 08:30 ET 신규 실업수당 청구 자동 추가
+    # 주간 반복 지표 자동 추가 — 목: 실업수당 청구 / 수: EIA 원유재고
     today_et = datetime.now(ET).date()
     for i in range(days + 2):
         d = today_et + timedelta(days=i)
@@ -203,6 +203,11 @@ def load_events(days):
             events.append({"dt": dt_et.astimezone(KST),
                            "name": "신규 실업수당 청구건수 (주간)",
                            "imp": 1, "confirmed": True})
+        if d.weekday() == 2:  # 수요일
+            dt_et = datetime(d.year, d.month, d.day, 10, 30, tzinfo=ET)
+            events.append({"dt": dt_et.astimezone(KST),
+                           "name": "EIA 주간 원유재고 — 재고↑=유가 하락 요인, 재고↓=상승 요인",
+                           "imp": 2, "confirmed": True})
 
     now = datetime.now(KST)
     horizon = now + timedelta(days=days)
