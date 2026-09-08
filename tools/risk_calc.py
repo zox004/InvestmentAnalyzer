@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """마이크로 선물 포지션 사이즈 계산기 — 손절폭과 리스크 한도로 진입 가능 계약 수 계산.
 
-지수 마이크로 3종(MNQ·M2K·MYM)은 **틱 가치가 $0.50로 모두 같다.**
-다른 건 "1틱이 몇 지수포인트냐"뿐이므로, 손절은 틱(--stop-ticks)으로 넣는 게 상품 간 비교에 편하다.
+⚠ **틱 가치가 상품마다 같지 않다.** MNQ·M2K·MYM은 $0.50이지만 **MES는 $1.25(2.5배)**다.
+2026-09-08까지는 브리핑 3종이 전부 $0.50이라 틱 수만 비교하면 됐지만, MES가 들어온 뒤로는
+**같은 손절 틱 수가 곧 같은 손실이 아니다.** 상품 간 비교는 반드시 '달러'로 한다.
 
 사용법:
-    python3 tools/risk_calc.py --product MYM --stop-ticks 60 --account 2117
+    python3 tools/risk_calc.py --product MES --stop-ticks 60 --account 2117
     python3 tools/risk_calc.py --product MNQ --stop-pts 30 --account 2117 --risk-pct 2
     python3 tools/risk_calc.py --list          # 상품별 사양 비교표
 """
@@ -15,6 +16,7 @@ import argparse
 # 상품: (이름, 포인트당 USD, 1틱=지수포인트, 위탁증거금 참고치, 일평균 변동 틱)
 PRODUCTS = {
     "MNQ": ("마이크로 나스닥100", 2.0, 0.25, 3958, 1922),
+    "MES": ("마이크로 S&P500", 5.0, 0.25, 2100, 298),
     "M2K": ("마이크로 러셀2000", 5.0, 0.10, 1110, 351),
     "MYM": ("마이크로 다우", 0.5, 1.00, 1560, 525),
     "MCL": ("마이크로 WTI 원유", 100.0, 0.01, 890, 403),
@@ -34,7 +36,10 @@ def show_list():
         tv = ppt * tick_pt
         print(f"{code:<6}{name:<18}{tick_pt:>10g}{tv:>9.2f}{day_ticks:>9,}틱"
               f"{day_ticks * tv:>8,.0f}{margin:>9,}")
-    print("\n※ 증거금·일평균 변동은 참고치(2026-08 기준). 실제 값은 HTS와 snapshot.py에서 확인")
+    print("\n※ 증거금·일평균 변동은 참고치. 실제 값은 HTS와 snapshot.py에서 확인")
+    print("⚠ 틱 가치가 상품마다 다르다 — MES는 $1.25로 나머지($0.50)의 2.5배.")
+    print("   같은 틱 수라도 손실 금액이 2.5배이므로 '틱'이 아니라 '달러'로 비교할 것")
+    print("⚠ MES 증거금 $2,100은 추정치 — 반드시 HTS에서 확인 (2026-09-08 기준 미확정)")
 
 
 def main():

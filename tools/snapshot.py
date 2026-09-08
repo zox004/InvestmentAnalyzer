@@ -28,10 +28,11 @@ WEEKDAY_KO = "월화수목금토일"
 SYMBOLS = [
     ("MNQ=F", "MNQ 선물 (마이크로 나스닥)", "pts"),
     ("^NDX", "└ 나스닥100 현물", "pts"),
-    ("M2K=F", "M2K 선물 (마이크로 러셀2000)", "pts"),
-    ("^RUT", "└ 러셀2000 현물", "pts"),
-    ("MYM=F", "MYM 선물 (마이크로 다우)", "pts"),
-    ("^DJI", "└ 다우 현물", "pts"),
+    ("MES=F", "MES 선물 (마이크로 S&P500)", "pts"),
+    ("^GSPC", "└ S&P500 현물", "pts"),
+    # 아래 3개는 브리핑 대상이 아니라 '매크로 참고용' — 로테이션·업종 갈림을 읽는 데 쓴다
+    ("^RUT", "러셀2000 (참고 · 소형주)", "pts"),
+    ("^DJI", "다우 (참고 · 실물 제조)", "pts"),
     ("^IXIC", "나스닥 종합 (뉴스 기준 지수)", "pts"),
     ("^TNX", "미 10년물 국채금리", "pct10"),
     ("^VIX", "VIX (공포지수)", "raw"),
@@ -39,12 +40,14 @@ SYMBOLS = [
     ("CL=F", "WTI 유가 (호르무즈 지표)", "raw"),
 ]
 
-# 계약 사양 — 틱 가치는 셋 다 $0.50. 증거금은 변동하므로 HTS에서 확인할 것
+# 계약 사양 — 증거금은 변동하므로 HTS에서 확인할 것
+# ⚠ MNQ와 MES는 틱 가치가 다르다: MNQ $0.50 / MES $1.25 (2.5배)
+#    2026-09-08까지 쓰던 3종(MNQ·M2K·MYM)은 모두 $0.50이라 틱 수만 비교하면 됐지만,
+#    MES가 들어온 뒤로는 반드시 '틱 x 틱가치 = 달러'로 환산해서 비교할 것
 SPECS = [
     # (상품, 지수심볼, 포인트당 $, 틱(포인트), 위탁증거금 참고치)
     ("MNQ", "^NDX", 2.0, 0.25, 3958),
-    ("M2K", "^RUT", 5.0, 0.10, 1110),
-    ("MYM", "^DJI", 0.5, 1.00, 1560),
+    ("MES", "^GSPC", 5.0, 0.25, 2100),   # ⚠ 추정치 — HTS 확인 필요 (2026-09-08 기준 미확정)
 ]
 
 COT_URL = "https://publicreporting.cftc.gov/resource/6dca-aqww.json"  # 레거시 보고서(선물만)
@@ -52,8 +55,7 @@ COT_URL = "https://publicreporting.cftc.gov/resource/6dca-aqww.json"  # 레거�
 # 주의: "E-MINI RUSSELL 2000 INDEX"는 2022년에 보고가 끊긴 구 명칭 — 현행은 "RUSSELL E-MINI"
 COT_MARKETS = [
     ("MNQ", "NASDAQ MINI"),
-    ("M2K", "RUSSELL E-MINI"),
-    ("MYM", "DJIA Consolidated"),
+    ("MES", "E-MINI S&P 500"),
 ]
 
 
