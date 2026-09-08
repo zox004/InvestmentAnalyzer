@@ -123,10 +123,45 @@ events:
     name: "고용보고서 — NFP·실업률·시간당임금 (8월)"
     importance: 3
     confirmed: false
+  - date: 2026-09-08
+    time: "06:00"
+    name: "NFIB 소기업 낙관지수 (8월) — 러셀2000 체감 경기"
+    importance: 1
+    confirmed: true
+  - date: 2026-09-08
+    time: "11:00"
+    name: "뉴욕연은 소비자 기대인플레이션 (8월)"
+    importance: 2
+    confirmed: true
+  - date: 2026-09-08
+    time: "13:00"
+    name: "3년물 국채 입찰"
+    importance: 1
+    confirmed: true
+  - date: 2026-09-09
+    time: "13:00"
+    name: "10년물 국채 입찰 — 부진 시 장기금리 급등"
+    importance: 2
+    confirmed: true
+  - date: 2026-09-10
+    time: "08:30"
+    name: "PPI 생산자물가 (8월) — 관세 원가 전가가 먼저 나타나는 지표"
+    importance: 2
+    confirmed: true
+  - date: 2026-09-10
+    time: "13:00"
+    name: "30년물 국채 입찰"
+    importance: 2
+    confirmed: true
   - date: 2026-09-11
     time: "08:30"
     name: "CPI 소비자물가 (8월)"
     importance: 3
+    confirmed: true
+  - date: 2026-09-11
+    time: "10:00"
+    name: "미시간대 소비자심리 (9월 예비)"
+    importance: 2
     confirmed: true
   - date: 2026-09-16
     time: "14:00"
