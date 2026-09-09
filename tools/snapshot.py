@@ -272,7 +272,8 @@ def main():
                   f"= {ticks:,.0f}틱 | ${ticks * tick_val:,.0f} | ${margin:,} |")
         except Exception:
             print(f"| {code} | {tick_pt:g}pt | ${tick_val:.2f} | N/A | N/A | ${margin:,} |")
-    print("\n> 증거금은 참고치 — 변동하므로 HTS에서 확인. 세 상품 모두 틱 가치 $0.50로 동일하다")
+    print("\n> 증거금은 참고치 — 변동하므로 HTS에서 확인.")
+    print("> ⚠ **틱 가치가 상품마다 다르다** — MNQ $0.50 / MES $1.25(2.5배). 같은 틱 수라도 손실 금액이 다르므로 비교는 '달러' 열로 한다")
 
     # 4. COT
     print("\n## 4. COT — 투기세력 순포지션 (CFTC, 화요일 기준 데이터)\n")
