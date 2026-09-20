@@ -168,16 +168,41 @@ events:
     name: "FOMC 금리 결정 + 점도표 (기자회견 14:30 ET)"
     importance: 3
     confirmed: true
+  - date: 2026-09-23
+    time: "09:45"
+    name: "S&P글로벌 PMI 9월 예비치 (제조·서비스·합성)"
+    importance: 2
+    confirmed: true
+  - date: 2026-09-24
+    time: "10:00"
+    name: "신규 주택판매 (8월)"
+    importance: 1
+    confirmed: true
   - date: 2026-09-25
     time: "08:30"
-    name: "PCE 물가 (8월)"
+    name: "내구재 주문 (8월 예비)"
+    importance: 1
+    confirmed: true
+  - date: 2026-09-25
+    time: "10:00"
+    name: "미시간대 소비자심리 (9월 확정)"
+    importance: 1
+    confirmed: true
+  - date: 2026-09-29
+    time: "10:00"
+    name: "소비자신뢰지수(컨퍼런스보드, 9월) + JOLTS 구인건수 (8월)"
     importance: 2
-    confirmed: false
+    confirmed: true
   - date: 2026-09-30
     time: "08:15"
     name: "ADP 민간고용 (9월)"
     importance: 2
-    confirmed: false
+    confirmed: true
+  - date: 2026-09-30
+    time: "08:30"
+    name: "PCE 물가 (8월) — 연준이 보는 물가 지표"
+    importance: 2
+    confirmed: true
   - date: 2026-09-30
     time: "08:30"
     name: "GDP 연례 개정 + 2분기 확정 (BEA 연례 업데이트)"
