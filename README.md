@@ -19,10 +19,16 @@
 
 운영 루틴과 작업 규칙은 [CLAUDE.md](CLAUDE.md), 상품별 설계는 위 표의 문서를 참조.
 
+**브리핑 절차는 스킬로 분리되어 있다** — `"브리핑"`이면 `briefing-index`+`briefing-btc`, `"위클리"`면 `briefing-weekly`가 호출된다. 두 체인의 규칙(임계값·채점 세션·상쇄표 적용 여부)이 서로 달라 한 문서에 두면 섞이기 때문이다.
+
 ## 구조
 
 ```
-CLAUDE.md    작업 규칙 — 브리핑 전 체크리스트, 분석 원칙, 오류에서 나온 규칙 모음
+CLAUDE.md    작업 규칙 — 분석 원칙, 사실 확인 원칙, 스킬 라우팅 표, 시장 배경 핵심
+.claude/skills/
+             briefing-index/   MNQ·MES 브리핑 절차 + 지수 배경 상세 (상쇄표·COT·섹터)
+             briefing-btc/     BTC 브리핑 절차 + BTC 배경 상세 (4층·펀딩비·ETF·상관)
+             briefing-weekly/  위클리 절차 + 갱신 항목 (임계값·일정·배경·lessons)
 GLOSSARY.md  용어집 — 브리핑 용어를 초보 기준으로 풀이 (모르는 말이 나오면 여기부터)
 briefings/   데일리 브리핑 아카이브 (거래일 저녁 작성)
 weekly/      위클리 리뷰 & 다음 주 전망 (주말 작성)
@@ -32,6 +38,7 @@ tools/       자동화 도구
                snapshot.py       지수용 — 시세·금리·유가·일정·COT·롤오버
                btc_snapshot.py   BTC용 — 시세·변동폭·ETF 자금흐름·스테이블코인·펀딩비·미결제약정·롱숏비율·상관
                risk_calc.py      포지션 계산 (지수는 틱 기준 / BTC는 % + 레버리지·청산 거리)
+               audit_docs.py     문서 정합성 회귀 검사 — 커밋 전 필수 (0건 확인)
                calendar_2026.yaml 지표 일정
 ```
 
@@ -44,7 +51,9 @@ python3 -m venv .venv && .venv/bin/pip install -r tools/requirements.txt  # 최�
 
 .venv/bin/python tools/risk_calc.py --list                                  # 지수 사양 비교
 .venv/bin/python tools/risk_calc.py -p MES --stop-ticks 60 --account 2117   # 지수: 진입 가능 계약 수
-.venv/bin/python tools/risk_calc.py -p BTC --stop-pct 2.85 --account 2117   # BTC: 포지션·레버리지·청산 거리
+.venv/bin/python tools/risk_calc.py -p BTC --stop-pct 2.79 --account 2117   # BTC: 포지션·레버리지·청산 거리
+
+.venv/bin/python tools/audit_docs.py       # 문서 정합성 검사 (커밋 전 0건 확인)
 ```
 
 > 본 저장소의 모든 분석은 정보 제공 목적이며, 투자 판단과 책임은 본인에게 있습니다.

@@ -15,6 +15,12 @@ import sys
 FILES = ["PLAN-BTC.md", "PLAN.md", "CLAUDE.md", "GLOSSARY.md", "README.md",
          "reviews/lessons.md", "reviews/bias-log-BTC.md", "reviews/bias-log-MNQ.md",
          "reviews/bias-log-MES.md", "tools/btc_snapshot.py", "tools/risk_calc.py"]
+SKILLS = sorted(__import__("glob").glob(".claude/skills/*/SKILL.md"))
+
+# 스킬이 선언해야 하는 임계값 — lessons.md가 정본이고 스킬은 복사본이므로 대조한다
+THRESHOLDS = {"briefing-index": ["±0.3%", "±0.7%", "±0.2%", "±0.5%"],
+              "briefing-btc": ["±0.6%", "±1.2%"],
+              "briefing-weekly": ["±0.3%", "±0.2%", "±0.6%"]}
 BRIEFS = sorted(f for f in __import__("glob").glob("briefings/*/*.md"))
 
 # 낡은 값 → 정정 문맥이 없으면 결함. 값이 바뀌면 여기에 추가한다.
@@ -41,7 +47,30 @@ def main():
     clau = read("CLAUDE.md") or ""
     err = set(re.findall(r"### ([①-⑭])", les))
     pat = set(re.findall(r"^(\d+)\. ", les, re.M))
-    targets = [f for f in FILES + BRIEFS if os.path.exists(f)]
+    targets = [f for f in FILES + SKILLS + BRIEFS if os.path.exists(f)]
+
+    # 0) 스킬 무결성 — 프론트매터·임계값 일치·라우팅 표 존재
+    for sk in SKILLS:
+        t = read(sk)
+        name = os.path.basename(os.path.dirname(sk))
+        if not t.startswith("---\n"):
+            issues.append(f"{sk}: YAML 프론트매터가 파일 맨 앞에 없다")
+        fm = t.split("---")[1] if t.count("---") >= 2 else ""
+        if f"name: {name}" not in fm:
+            issues.append(f"{sk}: frontmatter name이 디렉터리명({name})과 다르다")
+        if "description:" not in fm:
+            issues.append(f"{sk}: frontmatter description 없음")
+        for v in THRESHOLDS.get(name, []):
+            if v not in t:
+                issues.append(f"{sk}: 임계값 {v} 표기 없음 (lessons.md와 불일치 위험)")
+    for sk_name in THRESHOLDS:
+        if not os.path.exists(f".claude/skills/{sk_name}/SKILL.md"):
+            issues.append(f"스킬 누락: {sk_name}")
+    if os.path.exists("CLAUDE.md"):
+        c = read("CLAUDE.md")
+        for sk_name in THRESHOLDS:
+            if sk_name not in c:
+                issues.append(f"CLAUDE.md 라우팅 표에 {sk_name} 없음 — 호출 기준이 사라진다")
 
     # 1) 참조 무결성
     for f in targets:
@@ -114,7 +143,7 @@ def main():
             issues.append(f"도구 실패: {' '.join(cmd)} — {r.stderr.decode()[:100]}")
 
     uniq = list(dict.fromkeys(issues))
-    print(f"문서 감사: 검사 파일 {len(targets)}개 · 브리핑 {len(BRIEFS)}개")
+    print(f"문서 감사: 파일 {len(targets)}개 (스킬 {len(SKILLS)} · 브리핑 {len(BRIEFS)})")
     print(f"결과: 문제 {len(uniq)}건")
     for i in uniq:
         print(f"  ⚠ {i}")
