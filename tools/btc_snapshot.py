@@ -6,7 +6,7 @@
 
 수집 항목 (PLAN-BTC.md의 4층 체인 순서)
   1층 유동성·달러 : DXY · 10년물 · 금 (yfinance)
-  2층 자금 흐름   : 현물 ETF 일별 순유입 (Farside HTML 표) · 스테이블코인은 웹서치
+  2층 자금 흐름   : 현물 ETF 일별 순유입 (Farside) · 스테이블코인 총공급 (DefiLlama)
   3층 레버리지    : 펀딩비 · 미결제약정 · 롱숏비율 (OKX 공개 API) ← COT 대체
   4층 자체 재료   : ⚠ 웹서치로 보완 (규제·해킹·거래소 이슈)
   공통            : 시세 · 변동폭 · 판정 임계값 · 상관계수
@@ -172,6 +172,52 @@ def fetch_etf_flows(days=10):
         return None, f"{type(e).__name__}: {str(e)[:90]}"
 
 
+# ─────────────────── 2층 보조: 스테이블코인 총공급 ───────────────────
+
+STAB_URL = "https://stablecoins.llama.fi/stablecoincharts/all"
+# 해석 구간은 최근 2년 7일 변화율 분포에서 뽑았다 (감으로 정하지 않았다)
+#   10분위 -0.46% · 25분위 -0.07% · 50분위 +0.45% · 75분위 +1.02% · 90분위 +1.83%
+#   평균 +0.57% — 즉 스테이블코인 공급은 '보통 늘어난다'(양수인 주가 71%)
+STAB_BANDS = [(1.83, "**강한 확장** (90분위 이상)"),
+              (1.02, "확장 (75~90분위)"),
+              (-0.07, "보통 — **정보 없음**(25~75분위)"),
+              (-0.46, "둔화 (10~25분위)"),
+              (-99.0, "**수축** (10분위 이하) — 크립토에서 현금이 빠지는 중")]
+
+
+def fetch_stablecoins():
+    """USD 스테이블코인 총공급과 7/30/90일 변화. 실패하면 (None, 이유)."""
+    try:
+        import datetime as _dt
+
+        r = requests.get(STAB_URL, timeout=40, headers=ETF_UA)
+        r.raise_for_status()
+        rows = {}
+        for x in r.json():
+            v = (x.get("totalCirculatingUSD") or {}).get("peggedUSD")
+            if v:
+                rows[_dt.datetime.utcfromtimestamp(int(x["date"])).date()] = float(v)
+        if len(rows) < 100:
+            return None, f"시계열이 너무 짧다({len(rows)}일) — 응답 구조 변경 확인 필요"
+        days = sorted(rows)
+        cur = rows[days[-1]]
+        out = {"date": days[-1], "total": cur, "chg": {}}
+        for d in (7, 30, 90):
+            if len(days) > d:
+                prev = rows[days[-1 - d]]
+                out["chg"][d] = (cur - prev, (cur / prev - 1) * 100)
+        return out, None
+    except Exception as e:
+        return None, f"{type(e).__name__}: {str(e)[:90]}"
+
+
+def read_stab(pct7):
+    for lo, tag in STAB_BANDS:
+        if pct7 >= lo:
+            return tag
+    return STAB_BANDS[-1][1]
+
+
 # ─────────────────────── 공통: 시세·변동폭·임계값 ───────────────────────
 
 def fetch_candles(limit=60):
@@ -272,7 +318,25 @@ def main():
         if bad:
             print(f"\n⚠ **Total과 개별 ETF 합이 어긋난 행이 {len(bad)}개** — 사이트 열 구조 변경 의심, 수동 확인 필요")
         print(f"\n> 출처 Farside Investors · **1일 시차** — 인용 시 기준일을 함께 적는다")
-        print("> ⚠ 스테이블코인 공급량은 여전히 웹서치 항목이다")
+
+    # ── 2층 보조: 스테이블코인 ──
+    stab, serr = fetch_stablecoins()
+    print("\n### 2층 보조 — 스테이블코인 총공급 (⚠ 확인용, 방향 근거 아님)")
+    if not stab:
+        print(f"\n⚠ 조회 실패: {serr}")
+    else:
+        print(f"\n- **USD 스테이블코인 총공급: {stab['total']/1e9:,.1f}십억 달러** ({stab['date']} 기준)")
+        for d in (7, 30, 90):
+            if d in stab["chg"]:
+                amt, pct = stab["chg"][d]
+                extra = f"  ← {read_stab(pct)}" if d == 7 else ""
+                print(f"- {d}일 변화: **{amt/1e9:+.1f}십억$ ({pct:+.2f}%)**{extra}")
+        print("""
+> ⚠ **선행 지표가 아니다 — 측정으로 확인했다.** 7일 변화율 기준 BTC와의 상관은
+> **동시 +0.359 / 7일 선행 +0.096 / 14일 선행 -0.049 / 30일 선행 -0.092**다.
+> "대기 자금이 쌓이면 나중에 오른다"는 통념은 **선행 상관 0으로 성립하지 않는다.**
+> **COT와 같은 취급을 한다 — 다른 근거로 세운 판단을 확인하는 데만 쓰고, 1차 근거로 쓰지 않는다.**
+> (PLAN-BTC.md 2-2)""")
 
     # ── 3층: 레버리지 ──
     lev = fetch_leverage()
@@ -365,7 +429,6 @@ def main():
     print("""
 | 층 | 항목 | 왜 필요한가 |
 |---|---|---|
-| 2층 | 스테이블코인 총 공급량 (USDT·USDC) | 크립토에 들어와 대기 중인 현금 |
 | **4층** | 규제·정책 (SEC · CLARITY Act 등) | BTC 고유 재료 — 지수엔 없는 축 |
 | 4층 | 거래소·ETF 구조 이슈, 대형 해킹 | 급락의 단독 원인이 될 수 있다 |
 | 1층 | 연준 대차대조표(QT) 속도 | **금리보다 이게 BTC에 직접이다** |

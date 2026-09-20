@@ -30,7 +30,7 @@ reviews/     bias-log-<상품>.md (상품별 채점·적중률, 종료 상품도
 journal/     매매일지 (사용자 기록, 회고용)
 tools/       자동화 도구
                snapshot.py       지수용 — 시세·금리·유가·일정·COT·롤오버
-               btc_snapshot.py   BTC용 — 시세·변동폭·ETF 자금흐름·펀딩비·미결제약정·롱숏비율·상관
+               btc_snapshot.py   BTC용 — 시세·변동폭·ETF 자금흐름·스테이블코인·펀딩비·미결제약정·롱숏비율·상관
                risk_calc.py      포지션 계산 (지수는 틱 기준 / BTC는 % + 레버리지·청산 거리)
                calendar_2026.yaml 지표 일정
 ```
