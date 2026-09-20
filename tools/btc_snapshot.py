@@ -242,12 +242,20 @@ def fetch_macro():
         df = yf.download(list(tk), period="1y", progress=False,
                          auto_adjust=False)["Close"].rename(columns=tk)
         df = df[[v for v in tk.values() if v in df.columns]]
-        r = df.pct_change(fill_method=None)
+
+        # ⚠ BTC는 주말에도 거래되지만 DXY·금·금리는 안 된다. 순서를 틀리면 상관이 조용히 왜곡된다.
+        #    (이전 버전: 가격에 주말 행이 남은 채 pct_change → DXY의 월요일 수익률이 NaN이 되어
+        #     **모든 월요일이 통째로 빠졌고**, tail(63)도 거래일 63일이 아니었다.
+        #     그 결과 BTC-DXY 3개월 상관이 -0.432로 나왔는데, 올바르게 계산하면 -0.384다.)
+        #    → 먼저 공통 거래일만 남기고(dropna) 그 다음에 수익률을 낸다.
+        aligned = df.dropna()
+        r = aligned.pct_change(fill_method=None).dropna()
         corr = {}
         for w, lbl in [(63, "3개월"), (252, "1년")]:
-            rr = r.tail(w).dropna()
+            rr = r.tail(w)
             if len(rr) > 10 and "BTC" in rr:
                 corr[lbl] = {c: rr["BTC"].corr(rr[c]) for c in rr.columns if c != "BTC"}
+                corr.setdefault("_n", {})[lbl] = len(rr)
         return df, corr, None
     except Exception as e:
         return None, None, f"{type(e).__name__}: {str(e)[:80]}"
@@ -407,16 +415,24 @@ def main():
               "**금리는 '이익의 할인율'이 아니라 '유동성의 수도꼭지'로 작동**한다.")
 
     if corr:
+        n = corr.get("_n", {})
         print("\n### BTC 상관계수 — 왜 BTC를 넣는지의 근거")
-        print("\n| 대상 | 3개월 | 1년 |")
-        print("|---|---|---|")
+        print(f"\n> 공통 거래일만 비교 (3개월 {n.get('3개월','?')}일 · 1년 {n.get('1년','?')}일).")
+        print("> **부호 = 방향, 절댓값 = 강도. 0이 '관계 없음'이다.**")
+        print("> **R²(설명력) = 상관²** — BTC 움직임의 몇 %를 그 변수로 설명할 수 있나. 나머지는 다른 이유다.")
+        print("\n| 대상 | 3개월 | R² | 1년 | R² |")
+        print("|---|---|---|---|---|")
         for c, lbl in [("NDX", "나스닥100 (MNQ)"), ("SPX", "S&P500 (MES)"),
                        ("DXY", "달러인덱스"), ("GOLD", "금"), ("US10Y", "미 10년물")]:
             v3 = corr.get("3개월", {}).get(c)
             v1 = corr.get("1년", {}).get(c)
-            if v3 is not None or v1 is not None:
-                print(f"| {lbl} | {v3:+.3f} | {v1:+.3f} |" if v3 is not None and v1 is not None
-                      else f"| {lbl} | {v3 if v3 is None else f'{v3:+.3f}'} | {v1 if v1 is None else f'{v1:+.3f}'} |")
+            if v3 is None and v1 is None:
+                continue
+            f3 = f"{v3:+.3f}" if v3 is not None else "—"
+            r3 = f"{v3**2*100:.0f}%" if v3 is not None else "—"
+            f1 = f"{v1:+.3f}" if v1 is not None else "—"
+            r1 = f"{v1**2*100:.0f}%" if v1 is not None else "—"
+            print(f"| {lbl} | {f3} | {r3} | {f1} | {r1} |")
         n3 = corr.get("3개월", {}).get("NDX")
         if n3 is not None:
             print(f"\n> BTC-나스닥 상관 **{n3:+.3f}** — MNQ·MES 상관(+0.90)과 비교하면 거의 딴 몸이다.")
