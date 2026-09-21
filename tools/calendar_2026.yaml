@@ -178,6 +178,11 @@ events:
     name: "신규 주택판매 (8월)"
     importance: 1
     confirmed: true
+  - date: 2026-09-24
+    time: "00:00"
+    name: "⭐ 트럼프-시진핑 정상회담 (워싱턴) — 무역휴전 연장 여부·대중 관세(7.5% 권고안 보류 중)·$300억 구매 합의 가능성. 시간 미정"
+    importance: 3
+    confirmed: true
   - date: 2026-09-25
     time: "08:30"
     name: "내구재 주문 (8월 예비)"

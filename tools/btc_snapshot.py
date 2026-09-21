@@ -155,18 +155,29 @@ def fetch_etf_flows(days=10):
         t = t.rename(columns={t.columns[0]: "Date", t.columns[-1]: "Total"})
 
         rows = []
+        skipped = []
         for _, x in t.iterrows():
             d = pd.to_datetime(str(x["Date"]), format="%d %b %Y", errors="coerce")
             if pd.isna(d):
                 continue
+            # ⚠ 미보고 날짜 처리: Farside는 아직 집계 안 된 날에도 행을 만들고
+            #    개별 ETF는 "-"인데 Total만 0.0으로 찍는다. 그대로 읽으면
+            #    '0원 유입일'로 세어 5일·10일 창을 한 칸 잡아먹는다
+            #    (2026-09-21 실측: 5일 합계가 +$6.1M이어야 하는데 -$153.8M으로 나왔다).
+            #    → 개별 ETF가 전부 결측이면 그 날은 아직 보고되지 않은 것으로 보고 건너뛴다.
+            vals = [_etf_num(x[c]) for c in t.columns[1:-1]]
+            if all(v is None for v in vals):
+                skipped.append(d.date())
+                continue
             total = _etf_num(x["Total"])
-            # 개별 ETF 합으로 Total을 검산한다 (열 구조가 바뀌면 여기서 걸린다)
-            comp = sum(v for c in t.columns[1:-1] if (v := _etf_num(x[c])) is not None)
+            comp = sum(v for v in vals if v is not None)
             rows.append({"date": d.date(), "total": total, "check": round(comp, 1),
                          "ibit": _etf_num(x.get("IBIT"))})
         if not rows:
             return None, "표를 찾았으나 날짜 행을 해석하지 못함 — 사이트 구조 변경 확인 필요"
         rows.sort(key=lambda z: z["date"], reverse=True)
+        if skipped:
+            rows[0]["_skipped"] = sorted(skipped, reverse=True)
         return rows[:days], None
     except Exception as e:
         return None, f"{type(e).__name__}: {str(e)[:90]}"
@@ -325,7 +336,10 @@ def main():
                   "**레버리지가 만든 상승**이다 → 3층에서 확인 (PLAN-BTC.md 2-2)")
         if bad:
             print(f"\n⚠ **Total과 개별 ETF 합이 어긋난 행이 {len(bad)}개** — 사이트 열 구조 변경 의심, 수동 확인 필요")
-        print(f"\n> 출처 Farside Investors · **1일 시차** — 인용 시 기준일을 함께 적는다")
+        sk = flows[0].get("_skipped") if flows else None
+        if sk:
+            print(f"\n> ⓘ **미보고 제외**: {', '.join(str(d) for d in sk[:3])} — 아직 집계 전이라 창에서 뺐다")
+        print(f"> 출처 Farside Investors · **1일 시차** — 인용 시 기준일을 함께 적는다")
 
     # ── 2층 보조: 스테이블코인 ──
     stab, serr = fetch_stablecoins()
